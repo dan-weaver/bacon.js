@@ -574,9 +574,6 @@ class Observable
   withDescription: ->
     describe(arguments...).apply(this)
 
-  dependsOn: (observable) ->
-    DepCache.dependsOn(this, observable)
-
   toString: ->
     if @_name
       @_name
@@ -598,11 +595,9 @@ flatMap_ = (root, f, firstOnly, limit) ->
     spawn = (event) ->
       child = makeObservable(f event.value())
       deps.push(child)
-      DepCache.invalidate()
       composite.add (unsubAll, unsubMe) -> child.subscribeInternal (event) ->
         if event.isEnd()
           _.remove(child, deps)
-          DepCache.invalidate()
           checkQueue()
           checkEnd(unsubMe)
           Bacon.noMore
@@ -1323,53 +1318,50 @@ None =
   inspect: -> "None"
   toString: -> @inspect()
 
-DepCache = (->
-  flatDeps = {}
-  
-  dependsOn = (orig, o) ->
-    myDeps = flatDeps[orig.id]
-    if !myDeps
-      myDeps = flatDeps[orig.id] = {}
-      collectDeps orig, orig
-    myDeps[o.id]
-  
-  collectDeps = (orig, o) ->
-    for dep in o.internalDeps()
-      flatDeps[orig.id][dep.id] = true
-      collectDeps(orig, dep)
-
-  invalidate = -> flatDeps = {}
-
-  { invalidate, dependsOn }
-)()
-
 UpdateBarrier = (->
   rootEvent = undefined
-  waiters = []
+  waiterObs = []
+  waiters = {}
   afters = []
+  
   afterTransaction = (f) ->
     if rootEvent
       afters.push(f)
     else
       f()
-  independent = (waiter) ->
-    !_.any(waiters, ((other) -> DepCache.dependsOn(waiter.obs, other.obs)))
 
   whenDoneWith = (obs, f) ->
     if rootEvent
-      waiters.push {obs, f}
+      obsWaiters = waiters[obs.id]
+      if !obsWaiters?
+        obsWaiters = waiters[obs.id] = [f]
+        waiterObs.push(obs)
+      else
+        obsWaiters.push(f)
     else
       f()
-  findIndependent = ->
-    while (!independent(waiters[0]))
-      waiters.push(waiters.shift())
-    return waiters.shift()
 
   flush = ->
-    while waiters.length
-      findIndependent().f()
+    while waiterObs.length > 0
+      flushWaiters(0)
 
-  invalidateDeps = DepCache.invalidate
+  flushWaiters = (index) ->
+    obs = waiterObs[index]
+    obsId = obs.id
+    obsWaiters = waiters[obsId]
+    waiterObs.splice(index, 1)
+    delete waiters[obsId]
+    flushDepsOf(obs)
+    for f in obsWaiters
+      f()
+
+  flushDepsOf = (obs) ->
+    deps = obs.internalDeps()
+    for dep in deps
+      flushDepsOf(dep)
+      if waiters[dep.id]
+        index = _.indexOf(waiterObs, dep)
+        flushWaiters(index)
 
   inTransaction = (event, context, f, args) ->
     if rootEvent
@@ -1389,7 +1381,6 @@ UpdateBarrier = (->
           afters = []
           for f in theseAfters
             f()
-        invalidateDeps()
       result
 
   currentEventId = -> if rootEvent then rootEvent.id else undefined
@@ -1408,7 +1399,7 @@ UpdateBarrier = (->
             unsub()
     unsub
 
-  hasWaiters = -> waiters.length > 0
+  hasWaiters = -> waiterObs.length > 0
 
 
   { whenDoneWith, hasWaiters, inTransaction, currentEventId, wrappedSubscribe }
