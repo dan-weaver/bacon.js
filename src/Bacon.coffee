@@ -106,6 +106,7 @@ registerObs = (obs) ->
           spy(obs)
       finally
         delete registerObs.running
+  undefined
 
 withMethodCallSupport = (wrapped) ->
   (f, args...) ->
@@ -895,6 +896,7 @@ class Dispatcher
         ws = waiters
         waiters = null
         w() for w in ws
+      undefined
     pushIt = (event) ->
       if not pushing
         return if event is prevError
@@ -1016,6 +1018,7 @@ class Bus extends EventStream
         sink event
     unsubAll = ->
       sub.unsub?() for sub in subscriptions
+      undefined
     subscribeInput = (subscription) ->
       subscription.unsub = (subscription.input.subscribeInternal(guardedSink(subscription.input)))
     unsubscribeInput = (input) ->
@@ -1344,6 +1347,7 @@ UpdateBarrier = (->
   flush = ->
     while waiterObs.length > 0
       flushWaiters(0)
+    undefined
 
   flushWaiters = (index) ->
     obs = waiterObs[index]
@@ -1354,6 +1358,7 @@ UpdateBarrier = (->
     flushDepsOf(obs)
     for f in obsWaiters
       f()
+    undefined
 
   flushDepsOf = (obs) ->
     deps = obs.internalDeps()
@@ -1362,6 +1367,7 @@ UpdateBarrier = (->
       if waiters[dep.id]
         index = _.indexOf(waiterObs, dep)
         flushWaiters(index)
+    undefined
 
   inTransaction = (event, context, f, args) ->
     if rootEvent
