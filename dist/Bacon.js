@@ -60,7 +60,7 @@
     asEventStream: function(eventName, selector, eventTransformer) {
       var _ref;
       if (isFunction(selector)) {
-        _ref = [selector, null], eventTransformer = _ref[0], selector = _ref[1];
+        _ref = [selector, void 0], eventTransformer = _ref[0], selector = _ref[1];
       }
       return withDescription(this.selector || this, "asEventStream", eventName, Bacon.fromBinder((function(_this) {
         return function(handler) {
@@ -73,7 +73,7 @@
     }
   };
 
-  if ((_ref = typeof jQuery !== "undefined" && jQuery !== null ? jQuery : typeof Zepto !== "undefined" && Zepto !== null ? Zepto : null) != null) {
+  if ((_ref = typeof jQuery !== "undefined" && jQuery !== null ? jQuery : typeof Zepto !== "undefined" && Zepto !== null ? Zepto : void 0) != null) {
     _ref.fn.asEventStream = Bacon.$.asEventStream;
   }
 
@@ -506,7 +506,7 @@
           retriesDone: maxRetries - retries
         });
       } else {
-        return Bacon.once(new Bacon.Error(e));
+        return Bacon.once(new Error(e));
       }
     }));
   };
@@ -1034,9 +1034,9 @@
 
     Observable.prototype.flatMapError = function(fn) {
       return withDescription(this, "flatMapError", fn, this.mapError(function(err) {
-        return new Bacon.Error(err);
+        return new Error(err);
       }).flatMap(function(x) {
-        if (x instanceof Bacon.Error) {
+        if (x instanceof Error) {
           return fn(x.error);
         } else {
           return Bacon.once(x);
@@ -1276,14 +1276,14 @@
     EventStream.prototype.buffer = function(delay, onInput, onFlush) {
       var buffer, delayMs, reply;
       if (onInput == null) {
-        onInput = (function() {});
+        onInput = nop;
       }
       if (onFlush == null) {
-        onFlush = (function() {});
+        onFlush = nop;
       }
       buffer = {
         scheduled: false,
-        end: null,
+        end: void 0,
         values: [],
         flush: function() {
           var reply;
@@ -1627,7 +1627,7 @@
     var justInitValue;
     justInitValue = new EventStream(describe(property, "justInitValue"), function(sink) {
       var unsub, value;
-      value = null;
+      value = void 0;
       unsub = property.subscribeInternal(function(event) {
         if (event.hasValue()) {
           value = event;
@@ -1647,7 +1647,7 @@
 
   Dispatcher = (function() {
     function Dispatcher(subscribe, handleEvent) {
-      var done, ended, prevError, pushIt, pushing, queue, removeSub, subscriptions, unsubscribeFromSource, waiters;
+      var ended, prevError, pushIt, pushing, queue, removeSub, subscriptions, unsubscribeFromSource;
       if (subscribe == null) {
         subscribe = function() {
           return nop;
@@ -1660,23 +1660,10 @@
       this.hasSubscribers = function() {
         return subscriptions.length > 0;
       };
-      prevError = null;
+      prevError = void 0;
       unsubscribeFromSource = nop;
       removeSub = function(subscription) {
         return subscriptions = _.without(subscription, subscriptions);
-      };
-      waiters = null;
-      done = function() {
-        var w, ws, _i, _len;
-        if (waiters != null) {
-          ws = waiters;
-          waiters = null;
-          for (_i = 0, _len = ws.length; _i < _len; _i++) {
-            w = ws[_i];
-            w();
-          }
-        }
-        return void 0;
       };
       pushIt = function(event) {
         var reply, sub, success, tmp, _i, _len;
@@ -1710,7 +1697,6 @@
             event = queue.shift();
             this.push(event);
           }
-          done(event);
           if (this.hasSubscribers()) {
             return Bacon.more;
           } else {
@@ -2077,7 +2063,7 @@
       this.context = context;
       this.method = method;
       this.args = args;
-      this.cached = null;
+      this.cached = void 0;
     }
 
     Desc.prototype.deps = function() {
@@ -2307,20 +2293,20 @@
     }
     checkObservable = function(obs) {
       var deps;
-      if (Bacon._.contains(state, obs)) {
+      if (_.contains(state, obs)) {
         return true;
       } else {
         deps = obs.internalDeps();
         if (deps.length) {
           state.push(obs);
-          return Bacon._.any(deps, checkObservable);
+          return _.any(deps, checkObservable);
         } else {
           state.push(obs);
           return false;
         }
       }
     };
-    return Bacon._.any(observables, checkObservable);
+    return _.any(observables, checkObservable);
   };
 
   Bacon.update = function() {
@@ -2987,7 +2973,7 @@
       return function() {
         if (value === None) {
           value = f();
-          f = null;
+          f = void 0;
         }
         return value;
       };
