@@ -31,7 +31,8 @@ Bacon.fromBinder = (binder, eventTransformer = _.id) ->
     unbind
 
 # eventTransformer - defaults to returning the first argument to handler
-Bacon.$ = asEventStream: (eventName, selector, eventTransformer) ->
+Bacon.$ = {}
+Bacon.$.asEventStream = (eventName, selector, eventTransformer) ->
   [eventTransformer, selector] = [selector, undefined] if isFunction(selector)
   withDescription(@selector or this, "asEventStream", eventName, Bacon.fromBinder (handler) =>
     @on(eventName, selector, handler)
@@ -277,7 +278,7 @@ Bacon.retry = (options) ->
 
   withDescription(Bacon, "retry", options, source().flatMapError (e) ->
     if isRetryable(e) and retries > 0
-      retry(error: e, retriesDone: maxRetries - retries)
+      retry({error: e, retriesDone: maxRetries - retries})
     else
       Bacon.once(new Error(e)))
 
@@ -552,7 +553,7 @@ class Observable
     withDescription(this, "flatMapConcat", arguments...,
       @flatMapWithConcurrencyLimit 1, arguments...)
 
-  bufferingThrottle:  (minimumInterval) ->
+  bufferingThrottle: (minimumInterval) ->
     withDescription(this, "bufferingThrottle", minimumInterval,
       @flatMapConcat (x) ->
         Bacon.once(x).concat(Bacon.later(minimumInterval).filter(false)))
@@ -798,7 +799,7 @@ class EventStream extends Observable
         unless shouldHold
           @takeUntil(putToHold)
         else
-          @scan([], ((xs,x) -> xs.concat(x)), {eager:true}).sampledBy(releaseHold).take(1).flatMap(Bacon.fromArray))
+          @scan([], ((xs,x) -> xs.concat(x)), {eager: true}).sampledBy(releaseHold).take(1).flatMap(Bacon.fromArray))
 
   startWith: (seed) ->
     withDescription(this, "startWith", seed,
@@ -860,7 +861,7 @@ class Property extends Observable
 
   and: (other) -> withDescription(this, "and", other, @combine(other, (x, y) -> x and y))
 
-  or:  (other) -> withDescription(this, "or", other, @combine(other, (x, y) -> x or y))
+  or: (other) -> withDescription(this, "or", other, @combine(other, (x, y) -> x or y))
 
   delay: (delay) -> @delayChanges("delay", delay, (changes) -> changes.delay(delay))
 
@@ -1157,7 +1158,7 @@ Bacon.when = (patterns...) ->
   i = 0
   while (i < len)
     patSources = _.toArray patterns[i]
-    f = patterns[i+1]
+    f = patterns[i + 1]
     pat = {f: (if isFunction(f) then f else (-> f)), ixs: []}
     triggerFound = false
     for s in patSources
@@ -1266,7 +1267,7 @@ Bacon.update = (initial, patterns...) ->
   i = patterns.length - 1
   while (i > 0)
     unless patterns[i] instanceof Function
-      patterns[i] = do(x=patterns[i])->(->x)
+      patterns[i] = do (x = patterns[i]) -> (-> x)
     patterns[i] = lateBindFirst patterns[i]
     i = i - 2
   withDescription(Bacon, "update", initial, patterns..., Bacon.when(patterns...).scan initial, ((x,f) -> f x))
@@ -1329,7 +1330,7 @@ class Some
   inspect: -> "Some(" + @value + ")"
   toString: -> @inspect()
 
-None =
+None = {
   getOrElse: (value) -> value
   filter: -> None
   map: -> None
@@ -1338,6 +1339,7 @@ None =
   toArray: -> []
   inspect: -> "None"
   toString: -> @inspect()
+}
 
 UpdateBarrier = (->
   rootEvent = undefined
@@ -1549,7 +1551,7 @@ _ = {
   toArray: (xs) -> if isArray(xs) then xs else [xs]
   contains: (xs, x) -> _.indexOf(xs, x) != -1
   id: (x) -> x
-  last: (xs) -> xs[xs.length-1]
+  last: (xs) -> xs[xs.length - 1]
   all: (xs, f = _.id) ->
     for x in xs
       return false unless f(x)
@@ -1609,11 +1611,12 @@ recursionDepth = 0
 
 Bacon._ = _
 
-Bacon.scheduler =
+Bacon.scheduler = {
   setTimeout: (f,d) -> setTimeout(f,d)
   setInterval: (f, i) -> setInterval(f, i)
   clearInterval: (id) -> clearInterval(id)
   now: -> new Date().getTime()
+}
 
 if define? and define.amd?
   define [], -> Bacon
